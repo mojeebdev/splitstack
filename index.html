@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SplitStack — Money Allocation Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void-00: #020203;
+    --void-01: #050508;
+    --void-02: #0C0C12;
+    --void-03: #14141C;
+    --void-04: #1E1E28;
+    --void-05: #2C2C3A;
+    --ink-primary: #F0F0F8;
+    --ink-secondary: #8A8A9A;
+    --ink-tertiary: #4A4A5A;
+    --accent: #00FF9D;
+    --accent-dim: rgba(0,255,157,0.07);
+    --accent-border: rgba(0,255,157,0.22);
+    --gold: #F5A623;
+    --gold-dim: rgba(245,166,35,0.08);
+    --red: #E63B2E;
+    --red-dim: rgba(230,59,46,0.08);
+    --blue: #0EA5E9;
+    --blue-dim: rgba(14,165,233,0.08);
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-display);
+    background: var(--void-01);
+    color: var(--ink-primary);
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Dot grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background-image: radial-gradient(circle, #2C2C3A 1px, transparent 1px);
+    background-size: 28px 28px;
+    pointer-events: none;
+    opacity: 0.5;
+  }
+
+  /* Vignette to fade grid edges */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background: radial-gradient(ellipse 90% 70% at 50% 50%, transparent 30%, var(--void-01) 100%);
+    pointer-events: none;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 60px 24px 80px;
+  }
+
+  /* Header */
+  .header {
+    margin-bottom: 56px;
+  }
+
+  .header__eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .header__eyebrow::before {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  .header__title {
+    font-size: clamp(36px, 7vw, 64px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.0;
+    color: var(--ink-primary);
+    margin-bottom: 16px;
+  }
+
+  .header__title span {
+    color: var(--accent);
+  }
+
+  .header__sub {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 300;
+    color: var(--ink-secondary);
+    line-height: 1.7;
+    max-width: 480px;
+  }
+
+  /* Input card */
+  .input-card {
+    background: var(--void-02);
+    border: 1px solid var(--void-05);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .input-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-border), transparent);
+  }
+
+  .input-card__label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-tertiary);
+    margin-bottom: 12px;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .input-group {
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .input-group label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-tertiary);
+    margin-bottom: 8px;
+  }
+
+  .input-wrap {
+    position: relative;
+  }
+
+  .currency-symbol {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--ink-tertiary);
+    pointer-events: none;
+  }
+
+  input[type="number"], input[type="text"], select {
+    width: 100%;
+    background: var(--void-03);
+    border: 1px solid var(--void-05);
+    border-radius: 10px;
+    padding: 14px 14px 14px 36px;
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--ink-primary);
+    outline: none;
+    transition: border-color 0.2s;
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  input[type="number"]:focus, select:focus {
+    border-color: var(--accent-border);
+    box-shadow: 0 0 0 3px rgba(0,255,157,0.05);
+  }
+
+  select {
+    padding-left: 14px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234A4A5A' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+  }
+
+  select option { background: var(--void-03); }
+
+  .btn-calculate {
+    background: var(--accent);
+    color: var(--void-00);
+    border: none;
+    border-radius: 10px;
+    padding: 14px 28px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn-calculate:hover { opacity: 0.85; transform: translateY(-1px); }
+  .btn-calculate:active { transform: translateY(0); }
+
+  /* Sliders section */
+  .sliders-section {
+    background: var(--void-02);
+    border: 1px solid var(--void-05);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 32px;
+  }
+
+  .sliders-section__title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-tertiary);
+    margin-bottom: 24px;
+  }
+
+  .slider-row {
+    margin-bottom: 24px;
+  }
+
+  .slider-row:last-child { margin-bottom: 0; }
+
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .slider-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .slider-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .slider-name {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-primary);
+  }
+
+  .slider-pct {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .slider-track {
+    position: relative;
+    height: 6px;
+    background: var(--void-04);
+    border-radius: 99px;
+    overflow: visible;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: transparent;
+    outline: none;
+    cursor: pointer;
+    position: relative;
+    z-index: 2;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--ink-primary);
+    border: 2px solid var(--void-01);
+    box-shadow: 0 0 0 2px rgba(240,240,248,0.2);
+    cursor: grab;
+    transition: transform 0.15s;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.2); }
+  input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--ink-primary); border: 2px solid var(--void-01); cursor: grab;
+  }
+
+  .slider-fill {
+    position: absolute;
+    top: 0; left: 0; height: 100%;
+    border-radius: 99px;
+    pointer-events: none;
+    transition: width 0.1s;
+  }
+
+  .total-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--void-05);
+  }
+
+  .total-bar__label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--ink-tertiary);
+  }
+
+  .total-bar__pct {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-primary);
+  }
+
+  .total-bar__warning {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--red);
+    margin-left: auto;
+  }
+
+  /* Results grid */
+  .results {
+    display: none;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 32px;
+    animation: fadeUp 0.4s ease forwards;
+  }
+
+  .results.show { display: flex; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-card {
+    border-radius: 14px;
+    padding: 28px;
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .result-card--capital {
+    background: var(--accent-dim);
+    border-color: var(--accent-border);
+  }
+
+  .result-card--essentials {
+    background: var(--gold-dim);
+    border-color: rgba(245,166,35,0.2);
+  }
+
+  .result-card--lifestyle {
+    background: var(--blue-dim);
+    border-color: rgba(14,165,233,0.2);
+  }
+
+  .result-card__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+  }
+
+  .result-card__icon {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .result-card__tag {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 99px;
+    border: 1px solid;
+  }
+
+  .result-card--capital .result-card__tag { color: var(--accent); border-color: var(--accent-border); }
+  .result-card--essentials .result-card__tag { color: var(--gold); border-color: rgba(245,166,35,0.3); }
+  .result-card--lifestyle .result-card__tag { color: var(--blue); border-color: rgba(14,165,233,0.3); }
+
+  .result-card__name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-secondary);
+    margin-bottom: 6px;
+  }
+
+  .result-card__amount {
+    font-family: var(--font-mono);
+    font-size: clamp(28px, 5vw, 40px);
+    font-weight: 500;
+    line-height: 1;
+    color: var(--ink-primary);
+  }
+
+  .result-card--capital .result-card__amount { color: var(--accent); }
+  .result-card--essentials .result-card__amount { color: var(--gold); }
+  .result-card--lifestyle .result-card__amount { color: var(--blue); }
+
+  .result-card__pct {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-tertiary);
+    margin-top: 4px;
+  }
+
+  .result-card__desc {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 300;
+    color: var(--ink-secondary);
+    line-height: 1.6;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+
+  /* Progress bar */
+  .progress-section {
+    display: none;
+    background: var(--void-02);
+    border: 1px solid var(--void-05);
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 32px;
+    animation: fadeUp 0.4s 0.1s ease forwards;
+    opacity: 0;
+  }
+
+  .progress-section.show { display: block; }
+
+  .progress-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-tertiary);
+    margin-bottom: 14px;
+  }
+
+  .progress-bar-wrap {
+    height: 8px;
+    background: var(--void-04);
+    border-radius: 99px;
+    overflow: hidden;
+    display: flex;
+  }
+
+  .progress-seg {
+    height: 100%;
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .progress-seg--capital { background: var(--accent); }
+  .progress-seg--essentials { background: var(--gold); }
+  .progress-seg--lifestyle { background: var(--blue); }
+
+  .progress-legend {
+    display: flex;
+    gap: 20px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-secondary);
+  }
+
+  .legend-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Rule */
+  .rule-block {
+    background: var(--void-02);
+    border: 1px solid var(--void-05);
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 32px;
+  }
+
+  .rule-block__title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-tertiary);
+    margin-bottom: 16px;
+  }
+
+  .rules-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    list-style: none;
+  }
+
+  .rules-list li {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--ink-secondary);
+    line-height: 1.6;
+    display: flex;
+    gap: 10px;
+  }
+
+  .rules-list li::before {
+    content: '→';
+    color: var(--accent);
+    flex-shrink: 0;
+    font-size: 11px;
+    margin-top: 2px;
+  }
+
+  /* Quote block */
+  .quote-block {
+    border-left: 2px solid var(--accent);
+    padding: 24px 28px;
+    margin-bottom: 32px;
+    position: relative;
+  }
+
+  .quote-block__mark {
+    font-family: var(--font-display);
+    font-size: 64px;
+    line-height: 0.6;
+    color: var(--accent);
+    opacity: 0.25;
+    position: absolute;
+    top: 20px;
+    left: 22px;
+    pointer-events: none;
+    font-weight: 800;
+  }
+
+  .quote-block__text {
+    font-family: var(--font-display);
+    font-size: clamp(15px, 2.5vw, 19px);
+    font-weight: 600;
+    line-height: 1.55;
+    color: var(--ink-primary);
+    letter-spacing: -0.01em;
+    padding-left: 8px;
+    margin-bottom: 14px;
+  }
+
+  .quote-block__author {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding-left: 8px;
+  }
+
+  /* Footer */
+  .page-footer {
+    text-align: center;
+    padding-top: 32px;
+    border-top: 1px solid var(--void-05);
+  }
+
+  .page-footer p {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--ink-tertiary);
+  }
+
+  .page-footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  /* Responsive */
+  @media (max-width: 520px) {
+    .input-row { flex-direction: column; }
+    .btn-calculate { width: 100%; justify-content: center; }
+    .result-card { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header__eyebrow">Money Allocation System</div>
+    <h1 class="header__title">Split<span>Stack</span></h1>
+    <p class="header__sub">Enter your income. Set your percentages. Know exactly where every dollar goes before you touch it.</p>
+  </header>
+
+  <!-- Input Card -->
+  <div class="input-card">
+    <div class="input-card__label">Your Income</div>
+    <div class="input-row">
+      <div class="input-group">
+        <label>Currency</label>
+        <select id="currency">
+          <option value="$">USD ($)</option>
+          <option value="₦">NGN (₦)</option>
+          <option value="€">EUR (€)</option>
+          <option value="£">GBP (£)</option>
+          <option value="¥">JPY (¥)</option>
+          <option value="C$">CAD (C$)</option>
+          <option value="A$">AUD (A$)</option>
+          <option value="GH₵">GHS (GH₵)</option>
+          <option value="KES">KES</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Amount</label>
+        <div class="input-wrap">
+          <span class="currency-symbol" id="currencySymbol">$</span>
+          <input type="number" id="income" placeholder="1000" min="1" />
+        </div>
+      </div>
+      <button class="btn-calculate" onclick="calculate()">Calculate →</button>
+    </div>
+  </div>
+
+  <!-- Sliders -->
+  <div class="sliders-section">
+    <div class="sliders-section__title">Adjust your split — must total 100%</div>
+
+    <!-- Capital -->
+    <div class="slider-row">
+      <div class="slider-header">
+        <div class="slider-label">
+          <div class="slider-dot" style="background: var(--accent)"></div>
+          <span class="slider-name">🔒 Capital Reserve</span>
+        </div>
+        <span class="slider-pct" style="color:var(--accent)" id="capitalPct">25%</span>
+      </div>
+      <div class="slider-track" style="background:var(--void-04)">
+        <div class="slider-fill" id="capitalFill" style="background:var(--accent);width:25%"></div>
+        <input type="range" id="capitalSlider" min="0" max="100" value="25" oninput="onSlide('capital')">
+      </div>
+    </div>
+
+    <!-- Essentials -->
+    <div class="slider-row">
+      <div class="slider-header">
+        <div class="slider-label">
+          <div class="slider-dot" style="background: var(--gold)"></div>
+          <span class="slider-name">🏠 Essentials</span>
+        </div>
+        <span class="slider-pct" style="color:var(--gold)" id="essentialsPct">55%</span>
+      </div>
+      <div class="slider-track">
+        <div class="slider-fill" id="essentialsFill" style="background:var(--gold);width:55%"></div>
+        <input type="range" id="essentialsSlider" min="0" max="100" value="55" oninput="onSlide('essentials')">
+      </div>
+    </div>
+
+    <!-- Lifestyle -->
+    <div class="slider-row">
+      <div class="slider-header">
+        <div class="slider-label">
+          <div class="slider-dot" style="background: var(--blue)"></div>
+          <span class="slider-name">👕 Lifestyle</span>
+        </div>
+        <span class="slider-pct" style="color:var(--blue)" id="lifestylePct">20%</span>
+      </div>
+      <div class="slider-track">
+        <div class="slider-fill" id="lifestyleFill" style="background:var(--blue);width:20%"></div>
+        <input type="range" id="lifestyleSlider" min="0" max="100" value="20" oninput="onSlide('lifestyle')">
+      </div>
+    </div>
+
+    <!-- Total -->
+    <div class="total-bar">
+      <span class="total-bar__label">TOTAL</span>
+      <span class="total-bar__pct" id="totalPct">100%</span>
+      <span class="total-bar__warning" id="totalWarning"></span>
+    </div>
+  </div>
+
+  <!-- Rules -->
+  <div class="rule-block">
+    <div class="rule-block__title">The 3 Rules That Make It Work</div>
+    <ul class="rules-list">
+      <li>Split first, spend after — move your capital cut the moment income hits. Not later.</li>
+      <li>Lifestyle has a hard ceiling — when the bucket is empty, it's done. No borrowing from essentials.</li>
+      <li>Capital has one unlock condition — a real investment opportunity only. Not emergencies, not wants.</li>
+    </ul>
+  </div>
+
+  <!-- Kiyosaki Quote -->
+  <div class="quote-block">
+    <span class="quote-block__mark">"</span>
+    <p class="quote-block__text">It's not how much money you make, but how much money you keep, how hard it works for you, and how many generations you keep it for.</p>
+    <span class="quote-block__author">— Robert Kiyosaki, Rich Dad Poor Dad</span>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+
+    <div class="result-card result-card--capital">
+      <div class="result-card__top">
+        <div class="result-card__icon">🔒</div>
+        <span class="result-card__tag">War Chest</span>
+      </div>
+      <div class="result-card__name">Capital Reserve</div>
+      <div class="result-card__amount" id="capitalAmount">—</div>
+      <div class="result-card__pct" id="capitalAmtPct"></div>
+      <div class="result-card__desc">Lock this away. Never spend it on day-to-day needs. This is your move when opportunity shows up — and it will.</div>
+    </div>
+
+    <div class="result-card result-card--essentials">
+      <div class="result-card__top">
+        <div class="result-card__icon">🏠</div>
+        <span class="result-card__tag">Non-Negotiable</span>
+      </div>
+      <div class="result-card__name">Essentials</div>
+      <div class="result-card__amount" id="essentialsAmount">—</div>
+      <div class="result-card__pct" id="essentialsAmtPct"></div>
+      <div class="result-card__desc">Food, data, transport, bills. Everything that keeps you running. Protect this bucket — don't let lifestyle eat into it.</div>
+    </div>
+
+    <div class="result-card result-card--lifestyle">
+      <div class="result-card__top">
+        <div class="result-card__icon">👕</div>
+        <span class="result-card__tag">Controlled Spend</span>
+      </div>
+      <div class="result-card__name">Lifestyle</div>
+      <div class="result-card__amount" id="lifestyleAmount">—</div>
+      <div class="result-card__pct" id="lifestyleAmtPct"></div>
+      <div class="result-card__desc">Clothes, treats, extras. Enjoy it guilt-free — but when it's gone, it's gone. The ceiling is the discipline.</div>
+    </div>
+
+  </div>
+
+  <!-- Progress Bar -->
+  <div class="progress-section" id="progressSection">
+    <div class="progress-label">Allocation Breakdown</div>
+    <div class="progress-bar-wrap">
+      <div class="progress-seg progress-seg--capital" id="progressCapital" style="width:0%"></div>
+      <div class="progress-seg progress-seg--essentials" id="progressEssentials" style="width:0%"></div>
+      <div class="progress-seg progress-seg--lifestyle" id="progressLifestyle" style="width:0%"></div>
+    </div>
+    <div class="progress-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Capital</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--gold)"></div>Essentials</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Lifestyle</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="page-footer">
+    <p>Built by <a href="https://blindspotlab.xyz" target="_blank">BlindspotLab</a> · You have the idea. We ship the product.</p>
+  </footer>
+
+</div>
+
+<script>
+  // Currency symbol sync
+  document.getElementById('currency').addEventListener('change', function() {
+    document.getElementById('currencySymbol').textContent = this.value;
+  });
+
+  // Slider last changed tracking
+  let lastChanged = null;
+
+  function onSlide(changed) {
+    lastChanged = changed;
+    let c = parseInt(document.getElementById('capitalSlider').value);
+    let e = parseInt(document.getElementById('essentialsSlider').value);
+    let l = parseInt(document.getElementById('lifestyleSlider').value);
+    const total = c + e + l;
+
+    // Show warning if over 100
+    const warning = document.getElementById('totalWarning');
+    if (total > 100) {
+      warning.textContent = 'Over 100% — adjust other buckets';
+    } else if (total < 100) {
+      warning.textContent = `${100 - total}% unallocated`;
+    } else {
+      warning.textContent = '';
+    }
+
+    // Update fills and labels
+    updateSliderUI('capital', c);
+    updateSliderUI('essentials', e);
+    updateSliderUI('lifestyle', l);
+    document.getElementById('totalPct').textContent = total + '%';
+    document.getElementById('totalPct').style.color = total === 100 ? 'var(--accent)' : total > 100 ? 'var(--red)' : 'var(--ink-primary)';
+  }
+
+  function updateSliderUI(name, pct) {
+    const colors = { capital: 'var(--accent)', essentials: 'var(--gold)', lifestyle: 'var(--blue)' };
+    document.getElementById(name + 'Pct').textContent = pct + '%';
+    document.getElementById(name + 'Fill').style.width = pct + '%';
+  }
+
+  function calculate() {
+    const income = parseFloat(document.getElementById('income').value);
+    if (!income || income <= 0) {
+      document.getElementById('income').focus();
+      document.getElementById('income').style.borderColor = 'var(--red)';
+      setTimeout(() => document.getElementById('income').style.borderColor = '', 1000);
+      return;
+    }
+
+    const c = parseInt(document.getElementById('capitalSlider').value);
+    const e = parseInt(document.getElementById('essentialsSlider').value);
+    const l = parseInt(document.getElementById('lifestyleSlider').value);
+    const total = c + e + l;
+
+    if (total !== 100) {
+      document.getElementById('totalWarning').textContent = 'Adjust sliders to exactly 100% first';
+      return;
+    }
+
+    const currency = document.getElementById('currency').value;
+
+    const capitalAmt = (income * c / 100);
+    const essentialsAmt = (income * e / 100);
+    const lifestyleAmt = (income * l / 100);
+
+    const fmt = n => currency + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    document.getElementById('capitalAmount').textContent = fmt(capitalAmt);
+    document.getElementById('capitalAmtPct').textContent = c + '% of your income';
+
+    document.getElementById('essentialsAmount').textContent = fmt(essentialsAmt);
+    document.getElementById('essentialsAmtPct').textContent = e + '% of your income';
+
+    document.getElementById('lifestyleAmount').textContent = fmt(lifestyleAmt);
+    document.getElementById('lifestyleAmtPct').textContent = l + '% of your income';
+
+    // Show results
+    const results = document.getElementById('results');
+    const progress = document.getElementById('progressSection');
+    results.classList.add('show');
+    progress.classList.add('show');
+
+    // Animate progress bar
+    setTimeout(() => {
+      document.getElementById('progressCapital').style.width = c + '%';
+      document.getElementById('progressEssentials').style.width = e + '%';
+      document.getElementById('progressLifestyle').style.width = l + '%';
+    }, 50);
+
+    // Scroll to results
+    setTimeout(() => {
+      results.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+  }
+
+  // Enter key triggers calculate
+  document.getElementById('income').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') calculate();
+  });
+</script>
+</body>
+</html>
